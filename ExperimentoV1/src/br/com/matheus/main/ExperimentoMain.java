@@ -3,24 +3,29 @@ package br.com.matheus.main;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Scanner;
 
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import br.com.matheus.models.State;
-import br.com.matheus.models.Transiction;
-import br.com.matheus.readerXML.ReaderXML;
+import br.com.matheus.utils.ExtractInfoStates;
+import br.com.matheus.utils.ExtractInfoTransictions;
+import br.com.matheus.utils.FileUtils;
+import br.com.matheus.utils.ReaderXML;
 
 public class ExperimentoMain {
 
-	static ArrayList<State> states = new ArrayList<State>();
-	static ArrayList<Transiction> transictions = new ArrayList<Transiction>();
 	static ReaderXML reader = new ReaderXML();
+	static ExtractInfoStates extractState = new ExtractInfoStates();
+	static ExtractInfoTransictions extractTransictions = new ExtractInfoTransictions();
 
 	private static final String TAG_NAME = "mxCell";
 	private static final String PATH_XML = "./data/status_transitions.xml";
+	private static final String PATH_PROJECT = "C:/Users/mathe/Dropbox/UFCG/Mestrado/Material Tema/Código-Fontes/smarthome-36c60045325eb2b64d28ae2d0dec080a5dc5de69/bundles/core/org.eclipse.smarthome.core.thing/src";
+	private static final String FILE_EXTENSION = ".java";
+
+	private static HashMap<String, State> classAndState = new HashMap<String, State>();
 
 	public static void main(String[] args) {
 
@@ -31,55 +36,44 @@ public class ExperimentoMain {
 
 		for (int i = 0; i < nList.getLength(); i++) {
 
-			Node node = nList.item(i);
+			extractState.extractStates(nList.item(i));
+			extractTransictions.extractTransaction(nList.item(i));
+		}
 
-			if (node.getNodeType() == Node.ELEMENT_NODE) {
-				Element element = (Element) node;
-				if (element.hasAttribute("value")) {
-					if (!(element.getAttribute("value").equals(""))) {
-						if (element.getAttribute("value").contains("<br>")) {
-							State state = new State(element.getAttribute("id"),
-									element.getAttribute("value").replace("<br>", ""), element.getAttribute("parent"));
-							states.add(state);
-							System.out.println(state);
+		System.out.println("States: " + extractState.getStates().size());
+		System.out.println("Transictions: " + extractTransictions.getTransictions().size());
 
-						} else {
-							State state = new State(element.getAttribute("id"), element.getAttribute("value"),
-									element.getAttribute("parent"));
-							System.out.println(state);
-							states.add(state);
+		// Ler o arquivo Java e verifica se contem valor associado ao estado
+		ArrayList<String> files = (ArrayList<String>) FileUtils.listNames(PATH_PROJECT, "", FILE_EXTENSION);
+		try {
+			for (int i = 0; i < files.size(); i++) {
+
+				//
+				String path = files.get(i);
+				path = path.substring(0, path.lastIndexOf(FILE_EXTENSION));
+				path = path.replace(".", "/");
+				path = path + FILE_EXTENSION;
+				path = PATH_PROJECT + "/" + path;
+
+				File java = new File(path);
+				Scanner scanner = new Scanner(java);
+				// Contador de vezes que um estado se repete em um arquivo.
+				int count = 0;
+				while (scanner.hasNext()) {
+					String line = scanner.nextLine();
+					for (State state : extractState.getStates()) {
+						if (line.contains(state.getValue())) {
+							count++;
+							classAndState.put(java.getName(), state);
 						}
 					}
 				}
-				if (element.hasAttribute("target") && element.hasAttribute("source")) {
-					Transiction transiction = new Transiction(element.getAttribute("id"),
-							element.getAttribute("target"), element.getAttribute("source"));
-					transictions.add(transiction);
-					System.out.println(transiction);
-				}
+			}
+			System.out.println(classAndState);
 
-			}
-		}
-		System.out.println("States: " + states.size());
-		System.out.println("Transictions: " + transictions.size());
-		
-		//Ler o arquivo Java e verifica se contem valor associado ao estado
-		try {
-			File java = new File("./data/ThingStatus.java");
-			Scanner scanner = new Scanner(java);
-			while(scanner.hasNext()){
-				String line = scanner.nextLine();
-				for(State state : states){
-					if (line.contains(state.getValue())) {
-						System.out.println("consegui");
-					}
-				}
-			}
-			
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
-		
 
 	}
 
